@@ -1,0 +1,186 @@
+# name: test/sql/function/nested/test_struct_drop.test
+# description: Test struct_drop function that removes fields from a STRUCT
+# group: [nested]
+
+statement ok
+PRAGMA enable_verification
+
+# Test basic field dropping
+query T
+SELECT struct_drop({'a': 1, 'b': 2, 'c': 3}, 'b');
+----
+{'a': 1, 'c': 3}
+
+# Test dropping multiple fields
+query T
+SELECT struct_drop({'a': 1, 'b': 2, 'c': 3}, 'b', 'c');
+----
+{'a': 1}
+
+# Test dropping first field
+query T
+SELECT struct_drop({'a': 1, 'b': 2, 'c': 3}, 'a');
+----
+{'b': 2, 'c': 3}
+
+# Test dropping last field
+query T
+SELECT struct_drop({'a': 1, 'b': 2, 'c': 3}, 'c');
+----
+{'a': 1, 'b': 2}
+
+# Test case insensitive field name matching
+query T
+SELECT struct_drop({'A': 1, 'B': 2, 'C': 3}, 'b');
+----
+{'A': 1, 'C': 3}
+
+# Test with nested struct
+query T
+SELECT struct_drop({'a': 1, 'b': {'x': 10, 'y': 20}, 'c': 3}, 'b');
+----
+{'a': 1, 'c': 3}
+
+# Test with various data types
+query T
+SELECT struct_drop({'name': 'Alice', 'age': 30, 'email': 'alice@example.com'}, 'email');
+----
+{'name': Alice, 'age': 30}
+
+# Test with NULL values
+query T
+SELECT struct_drop({'a': NULL, 'b': 2, 'c': 3}, 'b');
+----
+{'a': NULL, 'c': 3}
+
+# Test dropping from struct with NULL fields
+query T
+SELECT struct_drop({'a': 1, 'b': NULL, 'c': 3}, 'b');
+----
+{'a': 1, 'c': 3}
+
+# ============================================================================
+# Error cases
+# ============================================================================
+
+# Missing required arguments
+statement error
+SELECT struct_drop();
+----
+<REGEX>:Invalid Input Error.*Missing required arguments.*
+
+# First argument must be a STRUCT
+statement error
+SELECT struct_drop(123, 'a');
+----
+<REGEX>:Invalid Input Error.*First argument must be a STRUCT.*
+
+# Must specify at least one field to drop
+statement error
+SELECT struct_drop({'a': 1, 'b': 2});
+----
+<REGEX>:Invalid Input Error.*Must specify at least one field name to drop.*
+
+# Cannot drop all fields
+statement error
+SELECT struct_drop({'a': 1}, 'a');
+----
+<REGEX>:Invalid Input Error.*Cannot drop all fields from a STRUCT.*
+
+# Duplicate field names to drop
+statement error
+SELECT struct_drop({'a': 1, 'b': 2}, 'a', 'a');
+----
+<REGEX>:Invalid Input Error.*Duplicate field name.*
+
+# Non-string argument (integer)
+statement error
+SELECT struct_drop({'a': 1, 'b': 2}, 123);
+----
+<REGEX>:Binder Error.*Field names must be string literals.*
+
+# Non-string argument (boolean)
+statement error
+SELECT struct_drop({'a': 1, 'b': 2}, true);
+----
+<REGEX>:Binder Error.*Field names must be string literals.*
+
+# Named parameter (field name with :=)
+statement error
+SELECT struct_drop({'a': 1, 'b': 2}, a := 'a');
+----
+<REGEX>:Binder Error.*Named parameters are not supported.*
+
+# Mixed positional and named parameters
+statement error
+SELECT struct_drop({'a': 1, 'b': 2, 'c': 3}, 'b', c := 'c');
+----
+<REGEX>:Binder Error.*Named parameters are not supported.*
+
+# Non-constant expression (function call)
+statement error
+SELECT struct_drop({'a': 1, 'b': 2}, UPPER('a'));
+----
+<REGEX>:Binder Error.*Field names must be string literals.*
+
+# ============================================================================
+# Table integration tests
+# ============================================================================
+
+statement ok
+CREATE TABLE tbl (id INT, col STRUCT(i INT, j INT, k VARCHAR));
+
+statement ok
+INSERT INTO tbl VALUES (1, {'i': 1, 'j': 100, 'k': 'first'});
+
+statement ok
+INSERT INTO tbl VALUES (2, {'i': 2, 'j': 200, 'k': 'second'});
+
+statement ok
+INSERT INTO tbl VALUES (3, {'i': 3, 'j': 300, 'k': 'third'});
+
+# Drop single field from table
+query I
+SELECT struct_drop(col, 'j') FROM tbl ORDER BY id;
+----
+{'i': 1, 'k': first}
+{'i': 2, 'k': second}
+{'i': 3, 'k': third}
+
+# Drop multiple fields from table
+query I
+SELECT struct_drop(col, 'j', 'k') FROM tbl ORDER BY id;
+----
+{'i': 1}
+{'i': 2}
+{'i': 3}
+
+# Drop field and access remaining field
+query I
+SELECT (struct_drop(col, 'j')).i FROM tbl ORDER BY id;
+----
+1
+2
+3
+
+# Test complex scenario: drop field and use result in computation
+query I
+SELECT (struct_drop(col, 'k')).i + (struct_drop(col, 'k')).j FROM tbl ORDER BY id;
+----
+101
+202
+303
+
+# Test with WHERE clause
+query T
+SELECT struct_drop(col, 'j') FROM tbl WHERE id = 1;
+----
+{'i': 1, 'k': first}
+
+# Test with multiple drops in same query
+query I
+SELECT struct_drop(struct_drop(col, 'j'), 'k') FROM tbl ORDER BY id;
+----
+{'i': 1}
+{'i': 2}
+{'i': 3}

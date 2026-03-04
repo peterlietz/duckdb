@@ -14,6 +14,13 @@
         "type": "scalar_function"
     },
     {
+      "name": "struct_drop",
+      "parameters": "struct,any",
+      "description": "Drops field(s) from an existing STRUCT. The field name(s) to drop will be specified as argument(s)",
+      "example": "struct_drop({'a': 1, 'b': 2}, 'b')",
+      "type": "scalar_function"
+    },
+    {
       "name": "struct_keys",
       "parameters": "struct",
       "description": "Returns the field names of a STRUCT as a list",
