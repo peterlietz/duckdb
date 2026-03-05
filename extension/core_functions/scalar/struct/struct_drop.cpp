@@ -20,7 +20,7 @@ static void StructDropFunction(DataChunk &args, ExpressionState &state, Vector &
 	auto &starting_types = StructType::GetChildTypes(starting_vec.GetType());
 
 	auto &func_args = state.expr.Cast<BoundFunctionExpression>().children;
-	auto fields_to_drop = case_insensitive_tree_t<bool>();
+	auto fields_to_drop = case_insensitive_set_t();
 
 	// Build a set of field names to drop from arguments 1 onwards
 	for (idx_t arg_idx = 1; arg_idx < func_args.size(); arg_idx++) {
@@ -31,7 +31,7 @@ static void StructDropFunction(DataChunk &args, ExpressionState &state, Vector &
 			auto &const_expr = drop_field->Cast<BoundConstantExpression>();
 			if (const_expr.value.type().id() == LogicalTypeId::VARCHAR) {
 				string field_name = const_expr.value.GetValue<string>();
-				fields_to_drop.emplace(field_name, true);
+				fields_to_drop.insert(field_name);
 			}
 		}
 	}
@@ -70,7 +70,7 @@ static unique_ptr<FunctionData> StructDropBind(ClientContext &context, ScalarFun
 	child_list_t<LogicalType> new_children;
 	auto &existing_children = StructType::GetChildTypes(arguments[0]->return_type);
 
-	auto fields_to_drop = case_insensitive_tree_t<string>();
+	auto fields_to_drop = case_insensitive_set_t();
 
 	// Validate incoming arguments (field names to drop) and record them
 	for (idx_t arg_idx = 1; arg_idx < arguments.size(); arg_idx++) {
@@ -98,7 +98,7 @@ static unique_ptr<FunctionData> StructDropBind(ClientContext &context, ScalarFun
 		if (fields_to_drop.find(field_name) != fields_to_drop.end()) {
 			throw InvalidInputException("struct_drop: Duplicate field name '%s'", field_name.c_str());
 		}
-		fields_to_drop.insert(make_pair(field_name, field_name));
+		fields_to_drop.insert(field_name);
 	}
 
 	// Keep only the fields that are NOT in the drop list
@@ -125,7 +125,7 @@ unique_ptr<BaseStatistics> StructDropStats(ClientContext &context, FunctionStati
 	auto &child_stats = input.child_stats;
 	auto &expr = input.expr;
 
-	auto fields_to_drop = case_insensitive_tree_t<bool>();
+	auto fields_to_drop = case_insensitive_set_t();
 	auto new_stats = StructStats::CreateUnknown(expr.return_type);
 
 	// Build drop set from arguments
@@ -136,7 +136,7 @@ unique_ptr<BaseStatistics> StructDropStats(ClientContext &context, FunctionStati
 			auto &const_expr = drop_field->Cast<BoundConstantExpression>();
 			if (const_expr.value.type().id() == LogicalTypeId::VARCHAR) {
 				string field_name = const_expr.value.GetValue<string>();
-				fields_to_drop.emplace(field_name, true);
+				fields_to_drop.insert(field_name);
 			}
 		}
 	}
