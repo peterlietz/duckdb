@@ -748,6 +748,7 @@ static constexpr ExtensionFunctionEntry EXTENSION_FUNCTIONS[] = {
     {"stop_ui_server", "ui", CatalogType::TABLE_FUNCTION_ENTRY},
     {"string_agg", "core_functions", CatalogType::AGGREGATE_FUNCTION_ENTRY},
     {"strpos", "core_functions", CatalogType::SCALAR_FUNCTION_ENTRY},
+    {"struct_drop", "core_functions", CatalogType::SCALAR_FUNCTION_ENTRY},
     {"struct_insert", "core_functions", CatalogType::SCALAR_FUNCTION_ENTRY},
     {"struct_keys", "core_functions", CatalogType::SCALAR_FUNCTION_ENTRY},
     {"struct_update", "core_functions", CatalogType::SCALAR_FUNCTION_ENTRY},

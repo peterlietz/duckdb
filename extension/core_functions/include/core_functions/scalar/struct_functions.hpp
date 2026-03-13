@@ -35,6 +35,16 @@ struct StructUpdateFun {
 	static ScalarFunction GetFunction();
 };
 
+struct StructDropFun {
+	static constexpr const char *Name = "struct_drop";
+	static constexpr const char *Parameters = "struct,any";
+	static constexpr const char *Description = "Drops field(s) from an existing STRUCT. The field name(s) to drop will be specified as argument(s)";
+	static constexpr const char *Example = "struct_drop({'a': 1, 'b': 2}, 'b')";
+	static constexpr const char *Categories = "";
+
+	static ScalarFunction GetFunction();
+};
+
 struct StructKeysFun {
 	static constexpr const char *Name = "struct_keys";
 	static constexpr const char *Parameters = "struct";
